@@ -1,13 +1,26 @@
-# Discord Bot - Rules & Voice Commands
+# Discord Rules Bot
 
 ## Setup
-1. Create a `.env` file with your bot token:
+1. Create a `.env` file with your config:
    ```
-   DISCORD_TOKEN=your_token_here
+   RULES_TOKEN=your_bot_token
+   CHANNEL_ID=rules_channel_id
+   VOICE_CHANNEL_ID=voice_channel_id
+   GUILD_ID=your_guild_id
+   IMAGE_URL=your_image_url
    ```
 2. Run `npm install`
 3. Run `node index.js`
 
-## Commands
-- `/rules` - Shows server rules embed
-- `/join` - Bot joins your voice channel (mic on, deafened)
+## Commands (Admin Only)
+- `!!rules` — Sends rules embed in the rules channel
+- `!voiceroom` — Bot joins the configured voice channel
+
+## Menu Options
+- القوانين العامة
+- قوانين الديسكورد
+- قوانين الإجرام
+- قوانين الشرطة
+- العقوبات
+- مصطلحات عامة
+- قوانين السرقة
