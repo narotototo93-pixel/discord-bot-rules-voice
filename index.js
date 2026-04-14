@@ -1,144 +1,393 @@
 const {
   Client,
   GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits
+  StringSelectMenuBuilder,
+  Events,
+  PermissionsBitField
 } = require('discord.js');
-const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 
-const TOKEN = process.env.DISCORD_TOKEN;
+const {
+  joinVoiceChannel,
+  VoiceConnectionStatus,
+  entersState
+} = require('@discordjs/voice');
 
-if (!TOKEN) {
-  console.error('DISCORD_TOKEN is not set!');
-  process.exit(1);
-}
+require('dotenv').config();
+
+const EMOJI = { id: '1452693592731816077' };
+const PREFIX = '!';
+
+const VOICE_CHANNEL_ID = process.env.VOICE_CHANNEL_ID || '1489331390989467809';
+const RULES_CHANNEL_ID = process.env.CHANNEL_ID || '1489329849742004275';
+const GUILD_ID = process.env.GUILD_ID || '1489325486617399390';
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
-const rules = [
-  { title: '📜 القاعدة 1: الاحترام', description: 'يجب احترام جميع الأعضاء. ممنوع الإهانة أو التنمر أو التحرش بأي شكل.' },
-  { title: '🚫 القاعدة 2: ممنوع السبام', description: 'ممنوع إرسال رسائل متكررة أو روابط بدون إذن أو إعلانات في القنوات.' },
-  { title: '🔞 القاعدة 3: محتوى مناسب', description: 'ممنوع نشر محتوى غير لائق أو عنيف أو مخالف لقوانين ديسكورد.' },
-  { title: '🎙️ القاعدة 4: الفويس', description: 'ممنوع التشويش في قنوات الصوت. احترم المتحدثين ولا تستخدم مؤثرات صوتية مزعجة.' },
-  { title: '📛 القاعدة 5: الأسماء', description: 'يجب استخدام أسماء مناسبة ومقروءة. ممنوع الأسماء المسيئة أو المضللة.' },
-  { title: '🔒 القاعدة 6: الخصوصية', description: 'ممنوع مشاركة معلومات شخصية للأعضاء الآخرين بدون إذنهم.' },
-  { title: '⚠️ القاعدة 7: الأوامر', description: 'استخدم الأوامر في القنوات المخصصة فقط. لا تسبم الأوامر.' },
-  { title: '👑 القاعدة 8: الإدارة', description: 'قرارات الإدارة نهائية. إذا عندك مشكلة تواصل مع الإدارة بأدب.' }
-];
-
-const commands = [
-  new SlashCommandBuilder()
-    .setName('rules')
-    .setDescription('عرض قوانين السيرفر')
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName('join')
-    .setDescription('البوت يدخل للفويس شانيل')
-    .toJSON()
-];
-
-client.once('ready', async () => {
-  console.log(`✅ Bot is online as ${client.user.tag}`);
-
-  const rest = new REST({ version: '10' }).setToken(TOKEN);
-
+// ==================== دالة الانضمام للفويس ====================
+async function joinVoice() {
   try {
-    console.log('Registering slash commands...');
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('✅ Slash commands registered successfully!');
-  } catch (error) {
-    console.error('Error registering commands:', error);
-  }
-});
+    const guild = client.guilds.cache.get(GUILD_ID);
+    if (!guild) return;
 
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === 'rules') {
-    await handleRulesCommand(interaction);
-  } else if (interaction.commandName === 'join') {
-    await handleJoinCommand(interaction);
-  }
-});
-
-async function handleRulesCommand(interaction) {
-  const embed = new EmbedBuilder()
-    .setTitle('📋 قوانين السيرفر')
-    .setDescription('**يرجى قراءة القوانين والالتزام بها لضمان بيئة آمنة ومريحة للجميع.**\n\n' +
-      '⚡ مخالفة القوانين = عقوبات (تحذير ← ميوت ← كيك ← بان)\n\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━')
-    .setColor(0xFF0000)
-    .setTimestamp()
-    .setFooter({ text: '⚠️ الجهل بالقوانين لا يعفيك من العقوبة' });
-
-  rules.forEach((rule) => {
-    embed.addFields({ name: rule.title, value: rule.description, inline: false });
-  });
-
-  embed.addFields({ name: '\u200b', value: '━━━━━━━━━━━━━━━━━━━━━━\n✅ **بالموافقة على البقاء في السيرفر، أنت توافق على جميع القوانين أعلاه.**' });
-
-  await interaction.reply({ embeds: [embed] });
-}
-
-async function handleJoinCommand(interaction) {
-  const member = interaction.member;
-
-  if (!member.voice.channel) {
-    return interaction.reply({
-      content: '❌ يجب أن تكون في قناة صوتية أولاً!',
-      ephemeral: true
-    });
-  }
-
-  const voiceChannel = member.voice.channel;
-
-  try {
     const connection = joinVoiceChannel({
-      channelId: voiceChannel.id,
-      guildId: voiceChannel.guild.id,
-      adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-      selfMute: false,
-      selfDeaf: true
-    });
-
-    connection.on(VoiceConnectionStatus.Ready, () => {
-      console.log(`🎙️ Connected to voice channel: ${voiceChannel.name}`);
+      channelId: VOICE_CHANNEL_ID,
+      guildId: GUILD_ID,
+      adapterCreator: guild.voiceAdapterCreator,
+      selfDeaf: true,
+      selfMute: true
     });
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
       try {
         await Promise.race([
           entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-          entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+          entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
         ]);
-      } catch (error) {
+      } catch {
         connection.destroy();
+        setTimeout(() => joinVoice(), 5000);
       }
     });
 
-    await interaction.reply({
-      content: `✅ دخلت لـ **${voiceChannel.name}**! 🎙️ المايك مفتوح و الديفن مفعل.`,
-      ephemeral: false
-    });
-  } catch (error) {
-    console.error('Voice join error:', error);
-    await interaction.reply({
-      content: '❌ ما قدرتش ندخل للفويس. تأكد أن البوت عندو الصلاحيات.',
-      ephemeral: true
-    });
+    console.log('انضم البوت إلى قناة الفويس');
+    return connection;
+  } catch (err) {
+    console.error('فشل الانضمام للفويس:', err.message);
+    setTimeout(() => joinVoice(), 10000);
   }
 }
 
-client.login(TOKEN);
+// ==================== دالة إرسال القوانين ====================
+async function sendRules(channel) {
+  try {
+    let fetched;
+    do {
+      fetched = await channel.messages.fetch({ limit: 100 });
+      if (fetched.size > 0) await channel.bulkDelete(fetched, true);
+    } while (fetched.size >= 2);
+  } catch {}
+
+  const embed = new EmbedBuilder()
+    .setTitle('قوانين السيرفر')
+    .setDescription(`
+اختر القسم الذي تريد الاطلاع على قوانينه من القائمة أدناه
+
+اقرأ القوانين بعناية
+جميع الردود ستكون مخفية لك فقط
+في حالة وجود استفسار تواصل مع الإدارة
+    `)
+    .setImage(process.env.IMAGE_URL || '')
+    .setColor('#2b2d31');
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('rules_menu')
+    .setPlaceholder('اختر قسم القوانين...')
+    .addOptions([
+      { label: 'القوانين العامة', value: 'general', emoji: EMOJI },
+      { label: 'قوانين الديسكورد', value: 'discord', emoji: EMOJI },
+      { label: 'قوانين الإجرام', value: 'crime', emoji: EMOJI },
+      { label: 'قوانين الشرطة', value: 'police', emoji: EMOJI },
+      { label: 'العقوبات', value: 'punishment', emoji: EMOJI },
+      { label: 'مصطلحات عامة', value: 'terms', emoji: EMOJI },
+      { label: 'قوانين السرقة', value: 'robbery', emoji: EMOJI }
+    ]);
+
+  const row = new ActionRowBuilder().addComponents(menu);
+  await channel.send({ embeds: [embed], components: [row] });
+}
+
+// ==================== أوامر البريفيكس ====================
+client.on(Events.MessageCreate, async message => {
+  if (message.author.bot) return;
+  if (!message.content.startsWith(PREFIX)) return;
+  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+
+  const command = message.content.slice(PREFIX.length).trim().toLowerCase();
+
+  // !rules — ينشر القوانين في روم القوانين
+  if (command === '!rules') {
+    try {
+      const rulesChannel = message.guild.channels.cache.get(RULES_CHANNEL_ID);
+      if (!rulesChannel) {
+        return message.reply('لم أجد روم القوانين.');
+      }
+      await sendRules(rulesChannel);
+      await message.reply('تم نشر القوانين بنجاح في روم القوانين.');
+    } catch (err) {
+      console.error(err);
+      message.reply('حدث خطأ أثناء نشر القوانين.');
+    }
+  }
+
+  // !voiceroom — يدخل البوت روم الفويس المحددة
+  if (command === 'voiceroom') {
+    try {
+      await joinVoice();
+      await message.reply('تم الانضمام إلى روم الفويس بنجاح.');
+    } catch (err) {
+      message.reply('حدث خطأ أثناء الانضمام للفويس.');
+    }
+  }
+});
+
+// ==================== التفاعل مع القائمة ====================
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isStringSelectMenu()) return;
+  if (interaction.customId !== 'rules_menu') return;
+
+  let embed;
+
+  if (interaction.values[0] === 'general') {
+    embed = new EmbedBuilder()
+      .setTitle('القوانين العامة')
+      .setDescription(`
+**〔 الاحترام المتبادل 〕**
+**1.** احترام جميع الأعضاء واجب بدون استثناء
+**2.** يُمنع السب، الشتم، الإهانة أو العنصرية بأي شكل
+**3.** يُمنع التحرش أو التنمر على أي عضو
+**4.** يُمنع انتحال شخصية أي عضو أو إداري أو موظف
+
+**〔 المحتوى والتواصل 〕**
+**5.** يُمنع نشر أي محتوى غير لائق أو مخالف للآداب العامة
+**6.** يُمنع السبام أو التكرار المستمر في أي مكان
+**7.** يُمنع نشر روابط أو إعلانات بدون إذن مسبق من الإدارة
+**8.** يُمنع نشر معلومات شخصية لأي شخص داخل السيرفر أو خارجه
+
+**〔 النظام والإدارة 〕**
+**9.** الالتزام التام بتعليمات وقرارات الإدارة
+**10.** يُمنع إثارة المشاكل أو الفتن أو الخلافات داخل السيرفر
+**11.** يُمنع طلب الرتب أو الإلحاح عليها بأي طريقة
+**12.** يُمنع التدخل في قرارات الإدارة أو التشكيك فيها علنًا
+**13.** يُمنع استغلال الثغرات أو الأخطاء لصالحك الشخصي
+**14.** يُمنع مشاركة معلومات السيرفر الداخلية مع الغير
+**15.** جهل القانون لا يُعفي من العقوبة
+      `)
+      .setColor('#FFD700');
+  }
+
+  if (interaction.values[0] === 'discord') {
+    embed = new EmbedBuilder()
+      .setTitle('قوانين الديسكورد')
+      .setDescription(`
+**〔 استخدام القنوات 〕**
+**1.** استخدم كل قناة في الغرض المخصص لها فقط
+**2.** يُمنع إرسال محتوى غير ذي صلة بموضوع القناة
+**3.** يُمنع استخدام القنوات الصوتية لأغراض خارجة عن المسموح
+**4.** يُمنع إزعاج الأعضاء في القنوات الصوتية بصوت أو موسيقى مزعجة
+
+**〔 السلوك العام 〕**
+**5.** يُمنع منشن @everyone أو @here بدون إذن من الإدارة
+**6.** يُمنع إرسال رسائل خاصة مزعجة أو إعلانية للأعضاء
+**7.** يُمنع استخدام أسماء مستخدمين أو صور ملف شخصي غير لائقة
+**8.** يُمنع التخريب أو محاولة إلحاق الضرر بالسيرفر
+**9.** يُمنع نشر روابط مشبوهة أو برامج ضارة
+
+**〔 الرتب والصلاحيات 〕**
+**10.** الالتزام بصلاحيات رتبتك ولا تتجاوزها
+**11.** يُمنع إساءة استخدام الرتب أو الصلاحيات الممنوحة لك
+**12.** يُمنع مشاركة أي معلومات خاصة بالإدارة خارج السيرفر
+**13.** الرتب تُمنح وفق معايير السيرفر ولا يحق لأحد المطالبة بها
+**14.** أي إساءة لرتبة إدارية ستُعرضك لعقوبة فورية
+      `)
+      .setColor('#5865F2');
+  }
+
+  if (interaction.values[0] === 'crime') {
+    embed = new EmbedBuilder()
+      .setTitle('قوانين الإجرام')
+      .setDescription(`
+**〔 القتل والعنف 〕**
+**1.** يُمنع RDM — القتل العشوائي بدون سبب أو سيناريو RP
+**2.** يُمنع VDM — استخدام المركبة كسلاح لدهس الأشخاص
+**3.** يجب إعطاء الضحية وقتًا كافيًا للتفاعل قبل أي عملية قتل
+**4.** يُمنع القتل في المناطق الآمنة تحت أي ظرف
+**5.** يُمنع استهداف نفس الشخص مرتين في مدة أقل من 30 دقيقة
+**6.** يجب أن يكون للقتل سبب منطقي وواضح ضمن السيناريو
+
+**〔 السيناريوهات والتمثيل 〕**
+**7.** يُمنع PowerGaming — إجبار الآخرين على أفعال بدون منحهم فرصة للرد
+**8.** يُمنع MetaGaming — استخدام معلومات خارج اللعبة داخل RP
+**9.** يُمنع GodModing — ادعاء عدم التأثر بالإصابات أو الأفعال
+**10.** يجب المحافظة على التمثيل طوال السيناريو
+**11.** يُمنع كسر الشخصية OOC أثناء السيناريو إلا للضرورة القصوى
+**12.** يُمنع الاستغلال الغير منطقي للهروب من المطاردات
+
+**〔 الأسلحة والتجهيزات 〕**
+**13.** يُمنع استخدام الأسلحة في المناطق الآمنة
+**14.** يجب إخفاء السلاح عند عدم الحاجة إليه
+**15.** يُمنع إطلاق النار بشكل عشوائي في الأماكن العامة
+      `)
+      .setColor('#FF4444');
+  }
+
+  if (interaction.values[0] === 'police') {
+    embed = new EmbedBuilder()
+      .setTitle('قوانين الشرطة')
+      .setDescription(`
+**〔 السلوك المهني 〕**
+**1.** الالتزام التام بالزي الرسمي أثناء الخدمة
+**2.** احترام المواطنين والتعامل معهم باحترافية عالية
+**3.** اتباع أوامر القائد المباشر في جميع الأوقات
+**4.** يُمنع الفساد أو استغلال منصبك لمصالح شخصية
+**5.** يُمنع قبول الرشاوى أو التفاوض على العقوبات
+
+**〔 استخدام القوة 〕**
+**6.** استخدام القوة يجب أن يكون ضرورة لا خيارًا
+**7.** التدخل يكون فقط عند الحاجة الفعلية وليس بشكل اعتباطي
+**8.** يُمنع إطلاق النار على المشتبه به إذا كان بإمكانك اعتقاله
+**9.** يُمنع إطلاق النار في الأماكن المكتظة إلا عند الضرورة القصوى
+**10.** احترام حق الدفاع عن النفس لدى المدنيين
+
+**〔 التحقيق والاعتقال 〕**
+**11.** يجب إبلاغ المشتبه به بحقوقه عند اعتقاله
+**12.** يُمنع تعذيب المعتقلين أو إيذاؤهم
+**13.** الاعتقال يكون وفق أدلة وأسباب مشروعة فقط
+**14.** يُمنع الاحتجاز بدون توجيه تهمة واضحة
+**15.** التعاون مع باقي أفراد الفريق الأمني واجب
+      `)
+      .setColor('#4444FF');
+  }
+
+  if (interaction.values[0] === 'punishment') {
+    embed = new EmbedBuilder()
+      .setTitle('العقوبات')
+      .setDescription(`
+**〔 المخالفات البسيطة 〕**
+**1.** تحذير شفهي — للمخالفة الأولى البسيطة
+**2.** تحذير رسمي — عند تكرار المخالفة البسيطة
+**3.** كتم مؤقت — عند الإزعاج المستمر
+
+**〔 المخالفات المتوسطة 〕**
+**4.** كتم طويل الأمد — للسب أو الإهانة
+**5.** طرد مؤقت — لانتهاك عدة قوانين بنفس الوقت
+**6.** بان مؤقت 1 إلى 7 أيام — لمخالفات RP متكررة
+**7.** سحب الرتبة مع الإنذار — لإساءة استخدام الصلاحيات
+
+**〔 المخالفات الكبيرة 〕**
+**8.** بان مؤقت 7 إلى 30 يومًا — لـ RDM أو VDM المتعمد
+**9.** بان دائم — لمن يكرر المخالفات الكبيرة بعد التحذير
+**10.** بان فوري — لنشر معلومات شخصية لأعضاء آخرين
+
+**〔 المخالفات الجسيمة — بان فوري 〕**
+**11.** استغلال الثغرات لإلحاق الضرر بالسيرفر
+**12.** الإهانة الشديدة للإدارة أو الأعضاء
+**13.** محاولة اختراق السيرفر أو سرقة البيانات
+**14.** نشر محتوى غير لائق أو مسيء بشدة
+**15.** التلاعب بالنظام أو الاحتيال على الأعضاء
+      `)
+      .setColor('#FF8800');
+  }
+
+  if (interaction.values[0] === 'terms') {
+    embed = new EmbedBuilder()
+      .setTitle('المصطلحات العامة')
+      .setDescription(`
+**〔 1. رول بلاي — Roleplay 〕**
+تقمص وتمثيل الشخصية قولاً وفعلاً مع مراعاة مجريات أحداث اللعبة وما يدور من حولك في المنطقة.
+التمثيل إلزامي للجميع وشرط جوهري في السيرفر.
+
+**〔 2. القتل العشوائي — RDM 〕**
+قتل الأشخاص دون سبب أو تهديد أو بطريقة عشوائية.
+مخالفة صريحة تستوجب العقوبة الفورية.
+
+**〔 3. الدهس بالمركبة — VDM 〕**
+استخدام المركبة كسلاح لقتل الأشخاص أو إيذائهم.
+ممنوع ومخالف للنظام العام للسيرفر.
+
+**〔 4. تقدير الحياة — Value Life 〕**
+دائماً قدّر حياتك وحياة الآخرين، ولا تقاوم المجرمين إذا كانوا مسلحين وأنت أعزل.
+يجب محاورة الآخرين بشكل كافٍ قبل أي عمل يعرض الأرواح للخطر.
+
+**〔 5. المناطق الآمنة — Safe Zones 〕**
+مناطق منزوعة السلاح يُمنع فيها القتل أو التخريب، مثل:
+• مركز التوظيف
+• مركز الشرطة وأمن المنشآت
+• المستشفيات
+• معارض بيع المركبات
+• أماكن الفعاليات الرسمية
+• البيوت والعقارات والكراجات
+
+**〔 6. كسر الشخصية — OOC 〕**
+الخروج من دور شخصيتك والتحدث كلاعب حقيقي، مسموح فقط في حالات الطوارئ.
+
+**〔 7. تضخيم القدرات — PowerGaming 〕**
+إجبار الآخرين على أفعال بدون منحهم فرصة للرد، ممنوع منعاً باتاً.
+
+**〔 8. معلومات خارج اللعبة — MetaGaming 〕**
+استخدام معلومات حصلت عليها خارج السيناريو داخل اللعبة، ممنوع تماماً.
+      `)
+      .setColor('#9B59B6');
+  }
+
+  if (interaction.values[0] === 'robbery') {
+    embed = new EmbedBuilder()
+      .setTitle('قوانين السرقة')
+      .setDescription(`
+**〔 القواعد الأساسية 〕**
+**1.** كل سرقة يجب أن تكون ضمن سيناريو RP واضح ومنطقي بدون استثناء
+**2.** يجب إعطاء الضحية وقتًا كافيًا للتفاعل والرد على السيناريو
+**3.** يجب التواصل الصوتي أو الكتابي داخل اللعبة مع الضحية قبل البدء
+**4.** يُمنع تنفيذ أي سرقة داخل المناطق الآمنة تحت أي ذريعة
+**5.** يُمنع سرقة نفس اللاعب أكثر من مرة في أقل من 60 دقيقة
+**6.** يُمنع سرقة اللاعبين الجدد الذين لا يعرفون نظام RP بعد
+
+**〔 سرقة الأفراد — Mugging 〕**
+**7.** يجب إشهار السلاح وإعطاء الأمر بوضوح: يداك للهواء أو ما شابه
+**8.** يجب أن يكون عدد المهاجمين معقولاً ولا يتجاوز 3 أشخاص لسرقة فرد واحد
+**9.** يُمنع سرقة لاعب بعد موته مباشرة دون سيناريو مسبق
+**10.** يجب الابتعاد عن المكان بعد السرقة ولا تبق قريباً من الضحية
+**11.** يُمنع قتل الضحية بعد السرقة إلا إذا قاومت أو أطلقت النار أولاً
+
+**〔 سرقة المركبات — Car Jacking 〕**
+**12.** يجب إيقاف المركبة أولاً بطريقة منطقية ضمن السيناريو
+**13.** يُمنع سرقة مركبة وصاحبها لا يزال داخلها دون تحذير مسبق
+**14.** يُمنع سرقة مركبات من داخل أو بالقرب من المناطق الآمنة
+**15.** يُمنع بيع المركبة المسروقة لنفس اللاعب الذي سُرق منه
+
+**〔 السطو على المحلات — Store Robbery 〕**
+**16.** يجب أن يكون عدد المنفذين بين شخص واحد و 3 أشخاص كحد أقصى
+**17.** يجب إعطاء الشرطة وقتًا للوصول والتدخل ولا تهرب فور الانتهاء
+**18.** يُمنع تنفيذ أكثر من سرقة محل في نفس المنطقة متتاليين
+**19.** يُمنع قتل موظف المحل إلا إذا قاوم بشكل فعلي داخل السيناريو
+**20.** يجب الحفاظ على التمثيل الكامل طوال عملية السطو
+
+**〔 سطو البنوك — Bank Robbery 〕**
+**21.** يجب إبلاغ الإدارة قبل تنفيذ أي سطو على بنك
+**22.** الحد الأقصى لعدد المنفذين هو 6 أشخاص فقط
+**23.** يجب أن يكون هناك رهائن لإضفاء الواقعية على السيناريو
+**24.** يُمنع قتل الرهائن إلا كملاذ أخير ضمن السيناريو
+**25.** يجب أن تكون مفاوضات مع الشرطة قبل أي اشتباك مباشر
+**26.** يُمنع تنفيذ سطو بنك ثانٍ في نفس اليوم
+**27.** الشرطة يجب أن تكون متواجدة بعدد لا يقل عن 4 ضباط لإمكانية تنفيذ السطو
+**28.** يُمنع استخدام أسلحة ثقيلة داخل البنك دون مبرر RP قوي
+
+**〔 النقل والهروب 〕**
+**29.** يُمنع الهروب بطريقة غير منطقية أو مستحيلة واقعياً
+**30.** يجب الالتزام بنظام الإصابات عند التعرض للنيران أثناء الهروب
+**31.** يُمنع العودة لمكان السرقة بعد الهروب منه في نفس السيناريو
+**32.** في حالة الاعتقال يجب الاستسلام والتفاعل مع سيناريو الشرطة
+      `)
+      .setColor('#E74C3C');
+  }
+
+  if (embed) {
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+});
+
+// ==================== عند بدء البوت ====================
+client.on(Events.ClientReady, async () => {
+  console.log(`Rules Bot Logged in as ${client.user.tag}`);
+  await joinVoice();
+});
+
+client.login(process.env.RULES_TOKEN);
