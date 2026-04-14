@@ -86,7 +86,8 @@ async function sendRules(channel) {
 في حالة وجود استفسار تواصل مع الإدارة
     `)
     .setImage(process.env.IMAGE_URL || '')
-    .setColor('#2b2d31');
+    .setColor('#2b2d31')
+    .setFooter({ text: '〆  BY : speeed__.privee' });
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId('rules_menu')
