@@ -1,14 +1,14 @@
 {
-  "name": "discord-bot",
+  "name": "nexus-rules-bot",
   "version": "1.0.0",
-  "description": "Discord Bot with Rules and Voice Commands",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.16.3",
+    "discord.js": "^14.15.3",
+    "dotenv": "^17.3.1",
     "@discordjs/voice": "^0.17.0",
-    "sodium-native": "^4.3.1"
+    "tweetnacl": "^1.0.3"
   }
 }
