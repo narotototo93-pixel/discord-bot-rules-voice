@@ -5,7 +5,10 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   Events,
-  PermissionsBitField
+  PermissionsBitField,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require('discord.js');
 
 const {
@@ -137,6 +140,37 @@ client.on(Events.MessageCreate, async message => {
     } catch (err) {
       message.reply('حدث خطأ أثناء الانضمام للفويس.');
     }
+  }
+});
+
+// ==================== أوامر الـ Slash ====================
+client.on(Events.InteractionCreate, async interaction => {
+  if (interaction.isChatInputCommand()) {
+    // /rules — ينشر القوانين في روم القوانين
+    if (interaction.commandName === 'rules') {
+      try {
+        const rulesChannel = interaction.guild.channels.cache.get(RULES_CHANNEL_ID);
+        if (!rulesChannel) {
+          return interaction.reply({ content: 'لم أجد روم القوانين.', ephemeral: true });
+        }
+        await sendRules(rulesChannel);
+        await interaction.reply({ content: 'تم نشر القوانين بنجاح في روم القوانين.', ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        await interaction.reply({ content: 'حدث خطأ أثناء نشر القوانين.', ephemeral: true });
+      }
+    }
+
+    // /join — البوت يدخل الفويس
+    if (interaction.commandName === 'join') {
+      try {
+        await joinVoice();
+        await interaction.reply({ content: 'تم الانضمام إلى روم الفويس بنجاح.', ephemeral: true });
+      } catch (err) {
+        await interaction.reply({ content: 'حدث خطأ أثناء الانضمام للفويس.', ephemeral: true });
+      }
+    }
+    return;
   }
 });
 
@@ -389,6 +423,26 @@ client.on(Events.InteractionCreate, async interaction => {
 client.on(Events.ClientReady, async () => {
   console.log(`Rules Bot Logged in as ${client.user.tag}`);
   await joinVoice();
+
+  // تسجيل أوامر الـ Slash
+  const slashCommands = [
+    new SlashCommandBuilder()
+      .setName('rules')
+      .setDescription('ينشر قوانين السيرفر في روم القوانين')
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName('join')
+      .setDescription('البوت يدخل روم الفويس المحدد')
+      .toJSON()
+  ];
+
+  const rest = new REST({ version: '10' }).setToken(process.env.RULES_TOKEN);
+  try {
+    await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: slashCommands });
+    console.log('✅ تم تسجيل أوامر الـ Slash بنجاح');
+  } catch (err) {
+    console.error('خطأ في تسجيل الأوامر:', err.message);
+  }
 });
 
 client.login(process.env.RULES_TOKEN);
